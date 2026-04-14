@@ -2,7 +2,7 @@ require('dotenv').config();
 const { Pool } = require('pg');
 
 const connectionString = process.env.DATABASE_URL;
-const pool = new Pool({ connectionString, ssl: { rejectUnauthorized: false } });
+const pool = new Pool({ connectionString, ssl: { rejectUnauthorized: false }, family: 4 });
 
 async function initDB() {
   console.log('Conectando a la base de datos...');
