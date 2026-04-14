@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
-const db = require('./src/database');
+const pool = require('./src/database');
 const router = require('./src/routes');
 
 const app = express();
@@ -12,18 +12,28 @@ app.use('/api', router);
 
 app.get('/', (req, res) => res.redirect('/login.html'));
 
-app.get('/health', (req, res) => {
-  const usuarios    = db.prepare('SELECT COUNT(*) as total FROM usuarios').get().total;
-  const grupos      = db.prepare('SELECT COUNT(*) as total FROM grupos').get().total;
-  const estudiantes = db.prepare('SELECT COUNT(*) as total FROM estudiantes').get().total;
-  const asistencias = db.prepare('SELECT COUNT(*) as total FROM asistencias').get().total;
-
-  res.json({
-    ok: true,
-    mensaje: 'Servidor funcionando',
-    hora: new Date().toISOString(),
-    stats: { usuarios, grupos, estudiantes, asistencias }
-  });
+app.get('/health', async (req, res) => {
+  try {
+    const [u, g, e, a] = await Promise.all([
+      pool.query('SELECT COUNT(*) AS total FROM usuarios'),
+      pool.query('SELECT COUNT(*) AS total FROM grupos'),
+      pool.query('SELECT COUNT(*) AS total FROM estudiantes'),
+      pool.query('SELECT COUNT(*) AS total FROM asistencias'),
+    ]);
+    res.json({
+      ok: true,
+      mensaje: 'Servidor funcionando',
+      hora: new Date().toISOString(),
+      stats: {
+        usuarios:    parseInt(u.rows[0].total),
+        grupos:      parseInt(g.rows[0].total),
+        estudiantes: parseInt(e.rows[0].total),
+        asistencias: parseInt(a.rows[0].total),
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
 });
 
 app.use((req, res) => {
