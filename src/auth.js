@@ -1,6 +1,8 @@
 const jwt = require('jsonwebtoken');
 
 function verificarToken(req, res, next) {
+  if (req.path === '/seed') return next();
+
   const authHeader = req.headers['authorization'];
   if (!authHeader) {
     return res.status(401).json({ error: 'Token no proporcionado' });

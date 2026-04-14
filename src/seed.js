@@ -88,14 +88,15 @@ async function main() {
   );
 
   console.log('Seed completado: 4 usuarios, 3 grupos, 9 estudiantes');
-  await pool.end();
 }
 
 module.exports = { main };
 
 if (require.main === module) {
-  main().catch(err => {
-    console.error(err);
-    process.exit(1);
-  });
+  main()
+    .then(() => pool.end())
+    .catch(err => {
+      console.error(err);
+      process.exit(1);
+    });
 }
