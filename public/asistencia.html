@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tomar asistencia - Asistencia Extraclases</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    .fila-estudiante {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--pico-muted-border-color);
+    }
+    .fila-estudiante:last-child {
+      border-bottom: none;
+    }
+    .opciones-estado {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .opciones-estado label {
+      margin: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.9rem;
+    }
+    .opciones-estado input[type="radio"] {
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <nav>
+      <ul>
+        <li><strong>Asistencia Extraclases</strong></li>
+      </ul>
+      <ul>
+        <li id="saludoUsuario"></li>
+        <li><button id="btnLogout" class="secondary outline">Cerrar sesión</button></li>
+      </ul>
+    </nav>
+
+    <p><a href="/dashboard.html">← Volver al dashboard</a></p>
+
+    <hgroup>
+      <h2 id="tituloGrupo">Cargando...</h2>
+      <p id="subtituloGrupo"></p>
+    </hgroup>
+
+    <form id="formAsistencia">
+      <label for="fecha">
+        Fecha
+        <input type="date" id="fecha" name="fecha" required>
+      </label>
+
+      <div id="contenedorEstudiantes" aria-busy="true">
+        Cargando estudiantes...
+      </div>
+
+      <button type="submit" id="btnGuardar" style="margin-top: 1.5rem;">Guardar asistencia</button>
+    </form>
+
+    <p id="mensajeExito" style="color: var(--pico-color-green-500); display: none; margin-top: 1rem;"></p>
+    <p id="mensajeError" style="color: var(--pico-color-red-500); display: none; margin-top: 1rem;"></p>
+  </main>
+
+  <script src="asistencia.js"></script>
+</body>
+</html>

@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Administración - Asistencia Extraclases</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      border-bottom: 2px solid var(--pico-muted-border-color);
+      padding-bottom: 0.5rem;
+    }
+    .tab-btn {
+      background: none;
+      border: 1px solid var(--pico-muted-border-color);
+      padding: 0.4rem 1.2rem;
+      cursor: pointer;
+      color: var(--pico-muted-color);
+      font-weight: bold;
+      border-radius: var(--pico-border-radius);
+      margin-bottom: 0;
+    }
+    .tab-btn.activo {
+      background: var(--pico-primary);
+      color: var(--pico-primary-inverse);
+      border-color: var(--pico-primary);
+    }
+    .tab-panel { display: none; }
+    .tab-panel.activo { display: block; }
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .panel-header h3 { margin: 0; }
+    table { width: 100%; }
+    td, th { vertical-align: middle; }
+    .acciones { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .acciones button { margin: 0; padding: 0.3rem 0.7rem; font-size: 0.85rem; }
+    dialog article { max-width: 480px; margin: auto; }
+    dialog footer { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem; }
+    dialog footer button { margin: 0; }
+    #mensajeGlobal { margin-top: 1rem; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <nav>
+      <ul>
+        <li><strong>Asistencia Extraclases</strong></li>
+      </ul>
+      <ul>
+        <li id="saludoUsuario"></li>
+        <li><button id="btnLogout" class="secondary outline">Cerrar sesión</button></li>
+      </ul>
+    </nav>
+
+    <p><a href="/dashboard.html">← Volver al dashboard</a></p>
+    <h2>Administración</h2>
+
+    <div class="tabs">
+      <button class="tab-btn activo" data-tab="estudiantes">Estudiantes</button>
+      <button class="tab-btn" data-tab="grupos">Grupos</button>
+      <button class="tab-btn" data-tab="entrenadores">Entrenadores</button>
+      <button class="tab-btn" data-tab="reportes">Reportes</button>
+    </div>
+
+    <!-- Panel Estudiantes -->
+    <div id="panel-estudiantes" class="tab-panel activo">
+      <div class="panel-header">
+        <h3>Estudiantes</h3>
+        <button id="btnCrearEstudiante">+ Nuevo estudiante</button>
+      </div>
+      <div style="display:flex; gap:1.5rem; flex-wrap:wrap; align-items:center; margin-bottom:1rem;">
+        <label style="display:inline-flex; align-items:center; gap:0.4rem; margin:0;">
+          Estado:
+          <select id="filtroEstudiantes" style="width:auto; margin:0;">
+            <option value="activos">Solo activos</option>
+            <option value="inactivos">Solo inactivos</option>
+            <option value="todos">Todos</option>
+          </select>
+        </label>
+        <label style="display:inline-flex; align-items:center; gap:0.4rem; margin:0;">
+          Grupo:
+          <select id="filtroGrupo" style="width:auto; margin:0;">
+            <option value="">Todos los grupos</option>
+          </select>
+        </label>
+        <label style="display:inline-flex; align-items:center; gap:0.4rem; margin:0;">
+          Grado:
+          <select id="filtroGrado" style="width:auto; margin:0;">
+            <option value="">Todos los grados</option>
+          </select>
+        </label>
+      </div>
+      <div id="tablaEstudiantes" aria-busy="true">Cargando...</div>
+    </div>
+
+    <!-- Panel Grupos -->
+    <div id="panel-grupos" class="tab-panel">
+      <div class="panel-header">
+        <h3>Grupos</h3>
+        <button id="btnCrearGrupo">+ Nuevo grupo</button>
+      </div>
+      <div id="tablaGrupos" aria-busy="true">Cargando...</div>
+    </div>
+
+    <!-- Panel Entrenadores -->
+    <div id="panel-entrenadores" class="tab-panel">
+      <div class="panel-header">
+        <h3>Entrenadores</h3>
+        <button id="btnCrearEntrenador">+ Nuevo entrenador</button>
+      </div>
+      <div id="tablaEntrenadores" aria-busy="true">Cargando...</div>
+    </div>
+
+    <!-- Panel Reportes -->
+    <div id="panel-reportes" class="tab-panel">
+      <h3>Reportes de asistencia</h3>
+      <form id="formReporte">
+        <div style="display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-end;">
+          <label style="flex:1; min-width:160px; margin:0;">
+            Grupo
+            <select id="rep-grupo">
+              <option value="">Todos los grupos</option>
+            </select>
+          </label>
+          <label style="flex:1; min-width:140px; margin:0;">
+            Desde
+            <input type="date" id="rep-desde">
+          </label>
+          <label style="flex:1; min-width:140px; margin:0;">
+            Hasta
+            <input type="date" id="rep-hasta">
+          </label>
+          <div style="padding-bottom:var(--pico-spacing);">
+            <button type="submit" id="btnBuscarReporte">Buscar</button>
+          </div>
+        </div>
+      </form>
+
+      <div id="resumenReporte" style="display:none; margin:1rem 0;">
+        <div style="display:flex; gap:1rem; flex-wrap:wrap; font-weight:bold;">
+          <span id="rep-total"></span>
+          <span id="rep-presentes" style="color:var(--pico-color-green-500);"></span>
+          <span id="rep-ausentes"  style="color:var(--pico-color-red-500);"></span>
+          <span id="rep-tardes"    style="color:var(--pico-color-orange-500);"></span>
+        </div>
+        <p id="rep-truncado" style="color:var(--pico-color-orange-500); display:none; margin:0.5rem 0 0;">
+          Se muestran los primeros 500 registros. Ajusta el rango de fechas para ver menos resultados.
+        </p>
+        <button id="btnExportarAdmin" class="outline" style="margin-top:0.75rem;">Exportar CSV</button>
+      </div>
+
+      <div id="resultadoReporte"></div>
+
+      <div id="seccionPorcentajesAdmin" style="display:none; margin-top:2rem;">
+        <h4>Asistencia por estudiante</h4>
+        <div id="tablaPorcentajesAdmin"></div>
+      </div>
+    </div>
+
+    <p id="mensajeGlobal" style="display: none;"></p>
+  </main>
+
+  <!-- Modal Estudiante -->
+  <dialog id="modalEstudiante">
+    <article>
+      <header>
+        <button aria-label="Cerrar" rel="prev" id="cerrarModalEstudiante"></button>
+        <h3 id="tituloModalEstudiante">Estudiante</h3>
+      </header>
+      <form id="formEstudiante">
+        <label>
+          Nombre completo
+          <input type="text" id="est-nombre" required>
+        </label>
+        <label>
+          Grado
+          <input type="text" id="est-grado" required>
+        </label>
+        <label>
+          Grupo
+          <select id="est-grupo" required></select>
+        </label>
+        <footer>
+          <button type="button" class="secondary" id="cancelarModalEstudiante">Cancelar</button>
+          <button type="submit">Guardar</button>
+        </footer>
+      </form>
+    </article>
+  </dialog>
+
+  <!-- Modal Grupo -->
+  <dialog id="modalGrupo">
+    <article>
+      <header>
+        <button aria-label="Cerrar" rel="prev" id="cerrarModalGrupo"></button>
+        <h3 id="tituloModalGrupo">Grupo</h3>
+      </header>
+      <form id="formGrupo">
+        <label>
+          Nombre
+          <input type="text" id="grp-nombre" required>
+        </label>
+        <label>
+          Actividad
+          <input type="text" id="grp-actividad" required>
+        </label>
+        <label>
+          Entrenador
+          <select id="grp-entrenador" required></select>
+        </label>
+        <label>
+          Horario
+          <input type="text" id="grp-horario" placeholder="Ej: Lunes y miércoles 3–5pm">
+        </label>
+        <label>
+          Lugar
+          <input type="text" id="grp-lugar" placeholder="Ej: Cancha principal">
+        </label>
+        <footer>
+          <button type="button" class="secondary" id="cancelarModalGrupo">Cancelar</button>
+          <button type="submit">Guardar</button>
+        </footer>
+      </form>
+    </article>
+  </dialog>
+
+  <!-- Modal Entrenador -->
+  <dialog id="modalEntrenador">
+    <article>
+      <header>
+        <button aria-label="Cerrar" rel="prev" id="cerrarModalEntrenador"></button>
+        <h3 id="tituloModalEntrenador">Entrenador</h3>
+      </header>
+      <form id="formEntrenador">
+        <label>
+          Nombre
+          <input type="text" id="ent-nombre" required>
+        </label>
+        <label>
+          Usuario
+          <input type="text" id="ent-usuario" required autocomplete="off">
+        </label>
+        <div id="ent-campo-password">
+          <label>
+            Contraseña
+            <input type="password" id="ent-password" autocomplete="new-password">
+          </label>
+        </div>
+        <footer>
+          <button type="button" class="secondary" id="cancelarModalEntrenador">Cancelar</button>
+          <button type="submit">Guardar</button>
+        </footer>
+      </form>
+    </article>
+  </dialog>
+
+  <!-- Modal Cambiar Contraseña -->
+  <dialog id="modalPassword">
+    <article>
+      <header>
+        <button aria-label="Cerrar" rel="prev" id="cerrarModalPassword"></button>
+        <h3>Cambiar contraseña</h3>
+      </header>
+      <form id="formPassword">
+        <label>
+          Nueva contraseña
+          <input type="password" id="pwd-nueva" autocomplete="new-password" required minlength="6">
+        </label>
+        <footer>
+          <button type="button" class="secondary" id="cancelarModalPassword">Cancelar</button>
+          <button type="submit">Guardar</button>
+        </footer>
+      </form>
+    </article>
+  </dialog>
+
+  <script src="admin.js"></script>
+</body>
+</html>

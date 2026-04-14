@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reportes - Asistencia Extraclases</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    table { width: 100%; }
+    .resumen-chips {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <nav>
+      <ul>
+        <li><strong>Asistencia Extraclases</strong></li>
+      </ul>
+      <ul>
+        <li id="saludoUsuario"></li>
+        <li><button id="btnLogout" class="secondary outline">Cerrar sesión</button></li>
+      </ul>
+    </nav>
+
+    <p><a href="/dashboard.html">← Volver al dashboard</a></p>
+    <h2>Reportes de asistencia</h2>
+
+    <form id="formReporte">
+      <div style="display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-end;">
+        <label style="flex:1; min-width:160px; margin:0;">
+          Grupo
+          <select id="rep-grupo">
+            <option value="">Todos los grupos</option>
+          </select>
+        </label>
+        <label style="flex:1; min-width:140px; margin:0;">
+          Desde
+          <input type="date" id="rep-desde">
+        </label>
+        <label style="flex:1; min-width:140px; margin:0;">
+          Hasta
+          <input type="date" id="rep-hasta">
+        </label>
+        <div style="padding-bottom:var(--pico-spacing);">
+          <button type="submit" id="btnBuscar">Buscar</button>
+        </div>
+      </div>
+    </form>
+
+    <div id="resumenReporte" style="display:none; margin:1.5rem 0 0.5rem;">
+      <div class="resumen-chips">
+        <span id="rep-total"></span>
+        <span id="rep-presentes" style="color:var(--pico-color-green-500);"></span>
+        <span id="rep-ausentes"  style="color:var(--pico-color-red-500);"></span>
+        <span id="rep-tardes"    style="color:var(--pico-color-orange-500);"></span>
+      </div>
+      <p id="rep-truncado" style="color:var(--pico-color-orange-500); display:none; margin:0;">
+        Se muestran los primeros 500 registros. Ajusta el rango de fechas para ver menos resultados.
+      </p>
+      <button id="btnExportar" class="outline" style="margin-top:0.75rem;">Exportar CSV</button>
+    </div>
+
+    <div id="resultadoReporte"></div>
+
+    <div id="seccionPorcentajes" style="display:none; margin-top:2rem;">
+      <h3>Asistencia por estudiante</h3>
+      <div id="tablaPorcentajes"></div>
+    </div>
+  </main>
+
+  <script src="reportes.js"></script>
+</body>
+</html>

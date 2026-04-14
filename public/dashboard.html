@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Asistencia Extraclases</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="container">
+    <nav>
+      <ul>
+        <li><strong>Asistencia Extraclases</strong></li>
+      </ul>
+      <ul>
+        <li id="saludoUsuario"></li>
+        <li><a href="/reportes.html">Reportes</a></li>
+        <li id="liAdmin" style="display: none;"><a href="/admin.html">Administración</a></li>
+        <li><button id="btnLogout" class="secondary outline">Cerrar sesión</button></li>
+      </ul>
+    </nav>
+
+    <hgroup>
+      <h2>Mis grupos</h2>
+      <p>Selecciona un grupo para tomar asistencia</p>
+    </hgroup>
+
+    <div id="contenedorGrupos" aria-busy="true">
+      Cargando grupos...
+    </div>
+
+    <p id="mensajeError" style="color: var(--pico-color-red-500); display: none;"></p>
+  </main>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,224 @@
+/* =====================================================
+   Tema: Azul & Amarillo — Asistencia Extraclases
+   ===================================================== */
+
+:root {
+  /* Paleta principal */
+  --brand-blue:        #1d4ed8;
+  --brand-blue-dark:   #1e3a8a;
+  --brand-blue-light:  #dbeafe;
+  --brand-yellow:      #f59e0b;
+  --brand-yellow-dark: #d97706;
+
+  /* Overrides Pico.css */
+  --pico-primary:            #1d4ed8;
+  --pico-primary-hover:      #1e40af;
+  --pico-primary-background: #1d4ed8;
+  --pico-primary-inverse:    #ffffff;
+  --pico-primary-underline:  rgba(29, 78, 216, 0.5);
+  --pico-primary-focus:      rgba(29, 78, 216, 0.25);
+
+  --pico-secondary:            #f59e0b;
+  --pico-secondary-hover:      #d97706;
+  --pico-secondary-background: #f59e0b;
+  --pico-secondary-inverse:    #1a1a1a;
+  --pico-secondary-underline:  rgba(245, 158, 11, 0.5);
+  --pico-secondary-focus:      rgba(245, 158, 11, 0.25);
+
+  --pico-background-color:      #eef2ff;
+  --pico-card-background-color: #ffffff;
+  --pico-card-box-shadow:
+    0 4px 16px rgba(29, 78, 216, 0.10),
+    0 1px 4px  rgba(29, 78, 216, 0.08);
+
+  --pico-form-element-active-border-color: #1d4ed8;
+  --pico-form-element-focus-color:         rgba(29, 78, 216, 0.2);
+}
+
+/* ===== Barra de navegación ===== */
+nav {
+  background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%) !important;
+  border-radius: 10px;
+  margin-bottom: 1.75rem;
+  box-shadow: 0 4px 14px rgba(29, 78, 216, 0.35);
+  padding: 0.6rem 1.25rem !important;
+}
+
+nav a,
+nav strong,
+nav li,
+nav span,
+nav #saludoUsuario {
+  color: #ffffff !important;
+  text-decoration: none;
+}
+
+nav a:hover {
+  color: #fbbf24 !important;
+  text-decoration: none;
+}
+
+/* Botón cerrar sesión en el nav */
+nav button {
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.55) !important;
+  background: transparent !important;
+  margin-bottom: 0;
+}
+nav button:hover {
+  border-color: #fbbf24 !important;
+  color: #fbbf24 !important;
+}
+
+/* ===== Encabezados ===== */
+h1, h2, h3, h4 {
+  color: #1e3a8a;
+}
+
+hgroup p {
+  color: #3b82f6;
+}
+
+/* ===== Cards / Article ===== */
+article {
+  border-top: 4px solid #1d4ed8 !important;
+  box-shadow: 0 4px 16px rgba(29, 78, 216, 0.10) !important;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+
+article:hover {
+  box-shadow: 0 8px 24px rgba(29, 78, 216, 0.18) !important;
+  transform: translateY(-2px);
+}
+
+article header {
+  background-color: #f0f5ff;
+  border-bottom: 1px solid #dbeafe;
+}
+
+/* ===== Botón primario ===== */
+button[type="submit"],
+button:not(.outline):not(.secondary):not(.tab-btn) {
+  background-color: #1d4ed8;
+  border-color: #1d4ed8;
+  color: #ffffff;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  transition: background-color 0.15s, box-shadow 0.15s;
+}
+
+button:not(.outline):not(.secondary):not(.tab-btn):hover {
+  background-color: #1e40af;
+  border-color: #1e40af;
+  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.4);
+}
+
+/* ===== Pestañas (tabs) ===== */
+.tabs {
+  border-bottom-color: #bfdbfe !important;
+}
+
+.tab-btn {
+  background: transparent !important;
+  border: 2px solid #1d4ed8 !important;
+  color: #1d4ed8 !important;
+  font-weight: 600;
+  transition: all 0.15s;
+}
+
+.tab-btn.activo {
+  background: #1d4ed8 !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(29, 78, 216, 0.35);
+}
+
+.tab-btn:hover:not(.activo) {
+  background: #dbeafe !important;
+}
+
+/* ===== Login card ===== */
+#loginForm button[type="submit"] {
+  background-color: #1d4ed8;
+  border-color: #1d4ed8;
+  width: 100%;
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.03em;
+}
+
+/* ===== Tabla ===== */
+table thead tr {
+  background-color: #1e3a8a;
+  color: #ffffff;
+}
+
+table thead th {
+  color: #ffffff !important;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+table tbody tr:nth-child(even) {
+  background-color: #f0f5ff;
+}
+
+table tbody tr:hover {
+  background-color: #dbeafe;
+}
+
+/* ===== Botones outline en tablas ===== */
+.acciones button.outline {
+  border-color: #1d4ed8;
+  color: #1d4ed8;
+}
+
+.acciones button.outline:hover {
+  background-color: #dbeafe;
+}
+
+.acciones button.secondary.outline {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.acciones button.secondary.outline:hover {
+  background-color: #fee2e2;
+}
+
+/* ===== Modales ===== */
+dialog article {
+  border-top: 4px solid #f59e0b !important;
+}
+
+dialog article header {
+  background-color: #fffbeb;
+  border-bottom: 1px solid #fde68a;
+}
+
+dialog h3 {
+  color: #1e3a8a !important;
+}
+
+/* ===== Filtros ===== */
+select:focus,
+input[type="date"]:focus,
+input[type="text"]:focus,
+input[type="password"]:focus {
+  border-color: #1d4ed8;
+  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.15);
+}
+
+/* ===== Badge "Asistencia tomada hoy" ===== */
+small[style*="green"] {
+  background-color: #dcfce7;
+  color: #15803d !important;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+/* ===== Página 404 ===== */
+#loginForm ~ p,
+main article h1 {
+  color: #1e3a8a;
+}

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Asistencia Extraclases</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="container">
+    <article style="max-width: 400px; margin: 4rem auto;">
+      <hgroup>
+        <h1>Asistencia Extraclases</h1>
+        <p>Colegio San Pedro Claver</p>
+      </hgroup>
+      <form id="loginForm">
+        <label for="usuario">
+          Usuario
+          <input type="text" id="usuario" name="usuario" required autocomplete="username">
+        </label>
+        <label for="contrasena">
+          Contraseña
+          <input type="password" id="contrasena" name="contrasena" required autocomplete="current-password">
+        </label>
+        <button type="submit">Iniciar sesión</button>
+      </form>
+      <p id="mensajeError" style="color: var(--pico-color-red-500); display: none;"></p>
+    </article>
+  </main>
+  <script src="login.js"></script>
+</body>
+</html>
