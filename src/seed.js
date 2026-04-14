@@ -1,65 +1,94 @@
-const db = require('./database');
+const pool = require('./database');
 const bcrypt = require('bcrypt');
 
 const SALT_ROUNDS = 10;
 
 async function main() {
-  // a) Limpiar tablas en orden por foreign keys
-  db.prepare('DELETE FROM asistencias').run();
-  db.prepare('DELETE FROM estudiantes').run();
-  db.prepare('DELETE FROM grupos').run();
-  db.prepare('DELETE FROM usuarios').run();
-  db.prepare('DELETE FROM sqlite_sequence').run();
+  // a) Limpiar tablas y reiniciar secuencias (CASCADE respeta foreign keys)
+  await pool.query('TRUNCATE asistencias, estudiantes, grupos, usuarios RESTART IDENTITY CASCADE');
 
   // b) Insertar usuarios
-  const insertUsuario = db.prepare(`
-    INSERT INTO usuarios (nombre, usuario, password_hash, rol)
-    VALUES (@nombre, @usuario, @password_hash, @rol)
-  `);
-
   const hashAdmin    = await bcrypt.hash('admin123',    SALT_ROUNDS);
   const hashCperez   = await bcrypt.hash('cperez123',   SALT_ROUNDS);
   const hashAgomez   = await bcrypt.hash('agomez123',   SALT_ROUNDS);
   const hashLramirez = await bcrypt.hash('lramirez123', SALT_ROUNDS);
 
-  insertUsuario.run({ nombre: 'Administrador', usuario: 'admin',    password_hash: hashAdmin,    rol: 'admin'       });
-  const { lastInsertRowid: idCarlos } = insertUsuario.run({ nombre: 'Carlos Pérez',  usuario: 'cperez',  password_hash: hashCperez,   rol: 'entrenador'  });
-  const { lastInsertRowid: idAna    } = insertUsuario.run({ nombre: 'Ana Gómez',     usuario: 'agomez',  password_hash: hashAgomez,   rol: 'entrenador'  });
-  const { lastInsertRowid: idLuis   } = insertUsuario.run({ nombre: 'Luis Ramírez',  usuario: 'lramirez',password_hash: hashLramirez, rol: 'entrenador'  });
+  await pool.query(
+    'INSERT INTO usuarios (nombre, usuario, password_hash, rol) VALUES ($1, $2, $3, $4)',
+    ['Administrador', 'admin', hashAdmin, 'admin']
+  );
+  const { rows: [{ id: idCarlos }] } = await pool.query(
+    'INSERT INTO usuarios (nombre, usuario, password_hash, rol) VALUES ($1, $2, $3, $4) RETURNING id',
+    ['Carlos Pérez', 'cperez', hashCperez, 'entrenador']
+  );
+  const { rows: [{ id: idAna }] } = await pool.query(
+    'INSERT INTO usuarios (nombre, usuario, password_hash, rol) VALUES ($1, $2, $3, $4) RETURNING id',
+    ['Ana Gómez', 'agomez', hashAgomez, 'entrenador']
+  );
+  const { rows: [{ id: idLuis }] } = await pool.query(
+    'INSERT INTO usuarios (nombre, usuario, password_hash, rol) VALUES ($1, $2, $3, $4) RETURNING id',
+    ['Luis Ramírez', 'lramirez', hashLramirez, 'entrenador']
+  );
 
   // c) Insertar grupos
-  const insertGrupo = db.prepare(`
-    INSERT INTO grupos (nombre, actividad, entrenador_id, horario, lugar)
-    VALUES (@nombre, @actividad, @entrenador_id, @horario, @lugar)
-  `);
-
-  const { lastInsertRowid: idFutbol }     = insertGrupo.run({ nombre: 'Fútbol Masculino', actividad: 'Fútbol',      entrenador_id: idCarlos, horario: 'Lunes y Miércoles 3pm', lugar: 'Cancha principal' });
-  const { lastInsertRowid: idBaloncesto } = insertGrupo.run({ nombre: 'Baloncesto',       actividad: 'Baloncesto',  entrenador_id: idAna,    horario: 'Martes y Jueves 3pm',  lugar: 'Polideportivo'   });
-  const { lastInsertRowid: idNatacion }   = insertGrupo.run({ nombre: 'Natación',         actividad: 'Natación',    entrenador_id: idLuis,   horario: 'Viernes 2pm',          lugar: 'Piscina'         });
+  const { rows: [{ id: idFutbol }] } = await pool.query(
+    'INSERT INTO grupos (nombre, actividad, entrenador_id, horario, lugar) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+    ['Fútbol Masculino', 'Fútbol', idCarlos, 'Lunes y Miércoles 3pm', 'Cancha principal']
+  );
+  const { rows: [{ id: idBaloncesto }] } = await pool.query(
+    'INSERT INTO grupos (nombre, actividad, entrenador_id, horario, lugar) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+    ['Baloncesto', 'Baloncesto', idAna, 'Martes y Jueves 3pm', 'Polideportivo']
+  );
+  const { rows: [{ id: idNatacion }] } = await pool.query(
+    'INSERT INTO grupos (nombre, actividad, entrenador_id, horario, lugar) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+    ['Natación', 'Natación', idLuis, 'Viernes 2pm', 'Piscina']
+  );
 
   // d) Insertar estudiantes
-  const insertEstudiante = db.prepare(`
-    INSERT INTO estudiantes (nombre_completo, grado, grupo_id, activo)
-    VALUES (@nombre_completo, @grado, @grupo_id, @activo)
-  `);
-
   // Fútbol
-  insertEstudiante.run({ nombre_completo: 'Sebastián Morales Ríos',    grado: '8°',  grupo_id: idFutbol,     activo: 1 });
-  insertEstudiante.run({ nombre_completo: 'Andrés Felipe Torres',       grado: '9°',  grupo_id: idFutbol,     activo: 1 });
-  insertEstudiante.run({ nombre_completo: 'Camilo Alejandro Vargas',    grado: '7°',  grupo_id: idFutbol,     activo: 1 });
+  await pool.query(
+    'INSERT INTO estudiantes (nombre_completo, grado, grupo_id, activo) VALUES ($1, $2, $3, 1)',
+    ['Sebastián Morales Ríos', '8°', idFutbol]
+  );
+  await pool.query(
+    'INSERT INTO estudiantes (nombre_completo, grado, grupo_id, activo) VALUES ($1, $2, $3, 1)',
+    ['Andrés Felipe Torres', '9°', idFutbol]
+  );
+  await pool.query(
+    'INSERT INTO estudiantes (nombre_completo, grado, grupo_id, activo) VALUES ($1, $2, $3, 1)',
+    ['Camilo Alejandro Vargas', '7°', idFutbol]
+  );
 
   // Baloncesto
-  insertEstudiante.run({ nombre_completo: 'Valentina Ospina Herrera',   grado: '10°', grupo_id: idBaloncesto, activo: 1 });
-  insertEstudiante.run({ nombre_completo: 'Isabella Castillo Mendoza',  grado: '11°', grupo_id: idBaloncesto, activo: 1 });
-  insertEstudiante.run({ nombre_completo: 'Daniela Suárez Patiño',      grado: '9°',  grupo_id: idBaloncesto, activo: 1 });
+  await pool.query(
+    'INSERT INTO estudiantes (nombre_completo, grado, grupo_id, activo) VALUES ($1, $2, $3, 1)',
+    ['Valentina Ospina Herrera', '10°', idBaloncesto]
+  );
+  await pool.query(
+    'INSERT INTO estudiantes (nombre_completo, grado, grupo_id, activo) VALUES ($1, $2, $3, 1)',
+    ['Isabella Castillo Mendoza', '11°', idBaloncesto]
+  );
+  await pool.query(
+    'INSERT INTO estudiantes (nombre_completo, grado, grupo_id, activo) VALUES ($1, $2, $3, 1)',
+    ['Daniela Suárez Patiño', '9°', idBaloncesto]
+  );
 
   // Natación
-  insertEstudiante.run({ nombre_completo: 'Juan Pablo Restrepo Gómez',  grado: '6°',  grupo_id: idNatacion,   activo: 1 });
-  insertEstudiante.run({ nombre_completo: 'Miguel Ángel Cárdenas Ruiz', grado: '8°',  grupo_id: idNatacion,   activo: 1 });
-  insertEstudiante.run({ nombre_completo: 'Santiago Romero Aguilar',    grado: '7°',  grupo_id: idNatacion,   activo: 1 });
+  await pool.query(
+    'INSERT INTO estudiantes (nombre_completo, grado, grupo_id, activo) VALUES ($1, $2, $3, 1)',
+    ['Juan Pablo Restrepo Gómez', '6°', idNatacion]
+  );
+  await pool.query(
+    'INSERT INTO estudiantes (nombre_completo, grado, grupo_id, activo) VALUES ($1, $2, $3, 1)',
+    ['Miguel Ángel Cárdenas Ruiz', '8°', idNatacion]
+  );
+  await pool.query(
+    'INSERT INTO estudiantes (nombre_completo, grado, grupo_id, activo) VALUES ($1, $2, $3, 1)',
+    ['Santiago Romero Aguilar', '7°', idNatacion]
+  );
 
-  // e) Resumen
   console.log('Seed completado: 4 usuarios, 3 grupos, 9 estudiantes');
+  await pool.end();
 }
 
 main().catch(err => {

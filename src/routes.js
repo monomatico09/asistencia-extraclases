@@ -1,5 +1,5 @@
 const express = require('express');
-const db = require('./database');
+const pool = require('./database');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
@@ -21,7 +21,8 @@ router.post('/login', loginLimiter, async (req, res) => {
     if (!usuario || !contraseña || typeof usuario !== 'string' || typeof contraseña !== 'string') {
       return res.status(400).json({ error: 'Usuario y contraseña son obligatorios' });
     }
-    const usuarioEncontrado = db.prepare('SELECT * FROM usuarios WHERE usuario = ?').get(usuario);
+    const { rows } = await pool.query('SELECT * FROM usuarios WHERE usuario = $1', [usuario]);
+    const usuarioEncontrado = rows[0];
     if (!usuarioEncontrado) {
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
@@ -53,35 +54,36 @@ router.post('/login', loginLimiter, async (req, res) => {
 
 router.use(verificarToken);
 
-router.get('/grupos', (req, res) => {
+router.get('/grupos', async (req, res) => {
   try {
     const incluirInactivos = req.query.incluir_inactivos === 'true';
-    let grupos;
+    let result;
     if (req.user.rol === 'admin') {
       const sql = incluirInactivos
         ? 'SELECT * FROM grupos ORDER BY nombre'
         : 'SELECT * FROM grupos WHERE activo = 1 ORDER BY nombre';
-      grupos = db.prepare(sql).all();
+      result = await pool.query(sql);
     } else {
       const sql = incluirInactivos
-        ? 'SELECT * FROM grupos WHERE entrenador_id = ? ORDER BY nombre'
-        : 'SELECT * FROM grupos WHERE entrenador_id = ? AND activo = 1 ORDER BY nombre';
-      grupos = db.prepare(sql).all(req.user.id);
+        ? 'SELECT * FROM grupos WHERE entrenador_id = $1 ORDER BY nombre'
+        : 'SELECT * FROM grupos WHERE entrenador_id = $1 AND activo = 1 ORDER BY nombre';
+      result = await pool.query(sql, [req.user.id]);
     }
-    res.json(grupos);
+    res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: 'Error al obtener los grupos' });
   }
 });
 
-router.get('/grupos/:id', (req, res) => {
+router.get('/grupos/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) {
       return res.status(400).json({ error: 'ID inválido' });
     }
     const incluirInactivos = req.query.incluir_inactivos === 'true';
-    const grupo = db.prepare('SELECT * FROM grupos WHERE id = ?').get(id);
+    const { rows } = await pool.query('SELECT * FROM grupos WHERE id = $1', [id]);
+    const grupo = rows[0];
     if (!grupo || (!incluirInactivos && grupo.activo === 0)) {
       return res.status(404).json({ error: 'Grupo no encontrado' });
     }
@@ -94,13 +96,14 @@ router.get('/grupos/:id', (req, res) => {
   }
 });
 
-router.get('/grupos/:id/estudiantes', (req, res) => {
+router.get('/grupos/:id/estudiantes', async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) {
       return res.status(400).json({ error: 'ID inválido' });
     }
-    const grupo = db.prepare('SELECT id, entrenador_id FROM grupos WHERE id = ?').get(id);
+    const { rows: grupoRows } = await pool.query('SELECT id, entrenador_id FROM grupos WHERE id = $1', [id]);
+    const grupo = grupoRows[0];
     if (!grupo) {
       return res.status(404).json({ error: 'Grupo no encontrado' });
     }
@@ -109,19 +112,19 @@ router.get('/grupos/:id/estudiantes', (req, res) => {
     }
     const incluirInactivos = req.query.incluir_inactivos === 'true';
     const sqlEstudiantes = incluirInactivos
-      ? 'SELECT * FROM estudiantes WHERE grupo_id = ? ORDER BY nombre_completo'
-      : 'SELECT * FROM estudiantes WHERE grupo_id = ? AND activo = 1 ORDER BY nombre_completo';
-    const estudiantes = db.prepare(sqlEstudiantes).all(id);
-    res.json(estudiantes);
+      ? 'SELECT * FROM estudiantes WHERE grupo_id = $1 ORDER BY nombre_completo'
+      : 'SELECT * FROM estudiantes WHERE grupo_id = $1 AND activo = 1 ORDER BY nombre_completo';
+    const { rows } = await pool.query(sqlEstudiantes, [id]);
+    res.json(rows);
   } catch (err) {
     res.status(500).json({ error: 'Error al obtener los estudiantes del grupo' });
   }
 });
 
-router.get('/estudiantes', (req, res) => {
+router.get('/estudiantes', async (req, res) => {
   try {
     const incluirInactivos = req.query.incluir_inactivos === 'true';
-    let estudiantes;
+    let result;
     if (req.user.rol === 'admin') {
       const sql = incluirInactivos
         ? `SELECT estudiantes.*, grupos.nombre AS grupo_nombre
@@ -133,29 +136,29 @@ router.get('/estudiantes', (req, res) => {
            LEFT JOIN grupos ON estudiantes.grupo_id = grupos.id
            WHERE estudiantes.activo = 1
            ORDER BY estudiantes.nombre_completo`;
-      estudiantes = db.prepare(sql).all();
+      result = await pool.query(sql);
     } else {
       const sql = incluirInactivos
         ? `SELECT estudiantes.*, grupos.nombre AS grupo_nombre
            FROM estudiantes
            LEFT JOIN grupos ON estudiantes.grupo_id = grupos.id
-           WHERE estudiantes.grupo_id IN (SELECT id FROM grupos WHERE entrenador_id = ?)
+           WHERE estudiantes.grupo_id IN (SELECT id FROM grupos WHERE entrenador_id = $1)
            ORDER BY estudiantes.nombre_completo`
         : `SELECT estudiantes.*, grupos.nombre AS grupo_nombre
            FROM estudiantes
            LEFT JOIN grupos ON estudiantes.grupo_id = grupos.id
            WHERE estudiantes.activo = 1
-             AND estudiantes.grupo_id IN (SELECT id FROM grupos WHERE entrenador_id = ?)
+             AND estudiantes.grupo_id IN (SELECT id FROM grupos WHERE entrenador_id = $1)
            ORDER BY estudiantes.nombre_completo`;
-      estudiantes = db.prepare(sql).all(req.user.id);
+      result = await pool.query(sql, [req.user.id]);
     }
-    res.json(estudiantes);
+    res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: 'Error al obtener los estudiantes' });
   }
 });
 
-router.get('/estudiantes/:id', (req, res) => {
+router.get('/estudiantes/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) {
@@ -166,17 +169,19 @@ router.get('/estudiantes/:id', (req, res) => {
       SELECT estudiantes.*, grupos.nombre AS grupo_nombre
       FROM estudiantes
       LEFT JOIN grupos ON estudiantes.grupo_id = grupos.id
-      WHERE estudiantes.id = ?${incluirInactivos ? '' : ' AND estudiantes.activo = 1'}
+      WHERE estudiantes.id = $1${incluirInactivos ? '' : ' AND estudiantes.activo = 1'}
     `;
-    const estudiante = db.prepare(sql).get(id);
+    const { rows } = await pool.query(sql, [id]);
+    const estudiante = rows[0];
     if (!estudiante) {
       return res.status(404).json({ error: 'Estudiante no encontrado' });
     }
     if (req.user.rol === 'entrenador') {
-      const pertenece = db.prepare(`
-        SELECT 1 FROM grupos WHERE id = ? AND entrenador_id = ?
-      `).get(estudiante.grupo_id, req.user.id);
-      if (!pertenece) {
+      const { rows: permRows } = await pool.query(
+        'SELECT 1 FROM grupos WHERE id = $1 AND entrenador_id = $2',
+        [estudiante.grupo_id, req.user.id]
+      );
+      if (!permRows[0]) {
         return res.status(403).json({ error: 'No tienes permiso para ver este estudiante' });
       }
     }
@@ -187,15 +192,14 @@ router.get('/estudiantes/:id', (req, res) => {
 });
 
 router.post('/asistencias', async (req, res) => {
+  const client = await pool.connect();
   try {
     const { grupo_id, fecha, registros } = req.body;
 
-    // 1. Validar grupo_id
     if (!Number.isInteger(grupo_id) || grupo_id <= 0) {
       return res.status(400).json({ error: 'grupo_id inválido' });
     }
 
-    // 2. Validar fecha
     if (!fecha || typeof fecha !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(fecha) || isNaN(new Date(fecha).getTime())) {
       return res.status(400).json({ error: 'fecha inválida, formato esperado YYYY-MM-DD' });
     }
@@ -205,14 +209,12 @@ router.post('/asistencias', async (req, res) => {
       return res.status(400).json({ error: 'No se puede registrar asistencia para fechas futuras' });
     }
 
-    // 3. Validar registros
     if (!Array.isArray(registros) || registros.length === 0) {
       return res.status(400).json({ error: 'registros debe ser un array no vacío' });
     }
 
     const estadosValidos = ['presente', 'ausente', 'tarde'];
 
-    // 4 y 5. Validar cada registro
     for (let i = 0; i < registros.length; i++) {
       const r = registros[i];
       if (!Number.isInteger(r.estudiante_id) || r.estudiante_id <= 0 || typeof r.estado !== 'string') {
@@ -223,60 +225,52 @@ router.post('/asistencias', async (req, res) => {
       }
     }
 
-    // 6. Validar estudiante_id duplicados
     const ids = registros.map(r => r.estudiante_id);
     if (new Set(ids).size !== ids.length) {
       return res.status(400).json({ error: 'estudiante_id duplicado en la lista' });
     }
 
-    // 7. Verificar grupo
-    const grupo = db.prepare('SELECT id, entrenador_id FROM grupos WHERE id = ?').get(grupo_id);
+    const { rows: grupoRows } = await pool.query('SELECT id, entrenador_id FROM grupos WHERE id = $1', [grupo_id]);
+    const grupo = grupoRows[0];
     if (!grupo) {
       return res.status(404).json({ error: 'Grupo no encontrado' });
     }
 
-    // 8-10. Verificar autorización
     if (req.user.rol !== 'admin' && !(req.user.rol === 'entrenador' && grupo.entrenador_id === req.user.id)) {
       return res.status(403).json({ error: 'No tienes permiso para registrar asistencias en este grupo' });
     }
 
-    // 11. Estudiantes activos del grupo
-    const estudiantesActivos = db.prepare('SELECT id FROM estudiantes WHERE grupo_id = ? AND activo = 1').all(grupo_id);
+    const { rows: estudiantesActivos } = await pool.query(
+      'SELECT id FROM estudiantes WHERE grupo_id = $1 AND activo = 1',
+      [grupo_id]
+    );
     const idsActivos = estudiantesActivos.map(e => e.id);
     const idsEnviados = new Set(ids);
 
-    // 12. Verificar que estén todos
     const faltantes = idsActivos.filter(id => !idsEnviados.has(id));
     if (faltantes.length > 0) {
       return res.status(400).json({ error: 'La lista debe incluir a todos los estudiantes activos del grupo', faltantes });
     }
 
-    // 13. Verificar que no haya extraños
     const idsActivosSet = new Set(idsActivos);
     const extraños = ids.filter(id => !idsActivosSet.has(id));
     if (extraños.length > 0) {
       return res.status(400).json({ error: 'Hay estudiantes en la lista que no pertenecen al grupo', extraños });
     }
 
-    // 14-16. UPSERT transaccional
-    const stmt = db.prepare(`
-      INSERT INTO asistencias (fecha, grupo_id, estudiante_id, estado, registrado_por)
-      VALUES (?, ?, ?, ?, ?)
-      ON CONFLICT(estudiante_id, fecha) DO UPDATE SET
-        estado = excluded.estado,
-        registrado_por = excluded.registrado_por,
-        actualizado_en = datetime('now')
-    `);
+    await client.query('BEGIN');
+    for (const r of registros) {
+      await client.query(`
+        INSERT INTO asistencias (fecha, grupo_id, estudiante_id, estado, registrado_por)
+        VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT (estudiante_id, fecha) DO UPDATE SET
+          estado = EXCLUDED.estado,
+          registrado_por = EXCLUDED.registrado_por,
+          actualizado_en = NOW()::text
+      `, [fecha, grupo_id, r.estudiante_id, r.estado, req.user.id]);
+    }
+    await client.query('COMMIT');
 
-    const transaccion = db.transaction((regs) => {
-      for (const r of regs) {
-        stmt.run(fecha, grupo_id, r.estudiante_id, r.estado, req.user.id);
-      }
-    });
-
-    transaccion(registros);
-
-    // 17. Respuesta exitosa
     res.status(201).json({
       ok: true,
       mensaje: 'Asistencias registradas',
@@ -285,13 +279,15 @@ router.post('/asistencias', async (req, res) => {
       fecha
     });
   } catch (err) {
+    await client.query('ROLLBACK');
     res.status(500).json({ error: 'Error al registrar asistencias' });
+  } finally {
+    client.release();
   }
 });
 
-router.get('/asistencias', (req, res) => {
+router.get('/asistencias', async (req, res) => {
   try {
-    // 1. Validación de filtros
     let grupo_id, estudiante_id, fecha_desde, fecha_hasta, estado;
 
     if (req.query.grupo_id !== undefined) {
@@ -334,10 +330,10 @@ router.get('/asistencias', (req, res) => {
       }
     }
 
-    // 2. Autorización explícita para entrenadores
     if (req.user.rol === 'entrenador') {
       if (grupo_id !== undefined) {
-        const grupo = db.prepare('SELECT id, entrenador_id FROM grupos WHERE id = ?').get(grupo_id);
+        const { rows } = await pool.query('SELECT id, entrenador_id FROM grupos WHERE id = $1', [grupo_id]);
+        const grupo = rows[0];
         if (!grupo) {
           return res.status(404).json({ error: 'Grupo no encontrado' });
         }
@@ -347,12 +343,13 @@ router.get('/asistencias', (req, res) => {
       }
 
       if (estudiante_id !== undefined) {
-        const estudiante = db.prepare(`
+        const { rows } = await pool.query(`
           SELECT estudiantes.id, grupos.entrenador_id
           FROM estudiantes
           INNER JOIN grupos ON estudiantes.grupo_id = grupos.id
-          WHERE estudiantes.id = ?
-        `).get(estudiante_id);
+          WHERE estudiantes.id = $1
+        `, [estudiante_id]);
+        const estudiante = rows[0];
         if (!estudiante) {
           return res.status(404).json({ error: 'Estudiante no encontrado' });
         }
@@ -362,7 +359,6 @@ router.get('/asistencias', (req, res) => {
       }
     }
 
-    // 3. Construcción dinámica de la query SQL
     let sql = `
       SELECT
         asistencias.id,
@@ -384,41 +380,40 @@ router.get('/asistencias', (req, res) => {
 
     const condiciones = [];
     const parametros = [];
+    let paramIndex = 1;
 
     if (grupo_id !== undefined) {
-      condiciones.push('asistencias.grupo_id = ?');
+      condiciones.push(`asistencias.grupo_id = $${paramIndex++}`);
       parametros.push(grupo_id);
     }
     if (estudiante_id !== undefined) {
-      condiciones.push('asistencias.estudiante_id = ?');
+      condiciones.push(`asistencias.estudiante_id = $${paramIndex++}`);
       parametros.push(estudiante_id);
     }
     if (fecha_desde !== undefined) {
-      condiciones.push('asistencias.fecha >= ?');
+      condiciones.push(`asistencias.fecha >= $${paramIndex++}`);
       parametros.push(fecha_desde);
     }
     if (fecha_hasta !== undefined) {
-      condiciones.push('asistencias.fecha <= ?');
+      condiciones.push(`asistencias.fecha <= $${paramIndex++}`);
       parametros.push(fecha_hasta);
     }
     if (estado !== undefined) {
-      condiciones.push('asistencias.estado = ?');
+      condiciones.push(`asistencias.estado = $${paramIndex++}`);
       parametros.push(estado);
     }
 
     if (req.user.rol === 'entrenador') {
-      condiciones.push('asistencias.grupo_id IN (SELECT id FROM grupos WHERE entrenador_id = ?)');
+      condiciones.push(`asistencias.grupo_id IN (SELECT id FROM grupos WHERE entrenador_id = $${paramIndex++})`);
       parametros.push(req.user.id);
     }
 
-    // 4. Ensamblar y ejecutar
     if (condiciones.length > 0) {
       sql += ' WHERE ' + condiciones.join(' AND ');
     }
     sql += ' ORDER BY asistencias.fecha DESC, asistencias.estudiante_id ASC LIMIT 501';
 
-    // 5. Respuesta
-    const filas = db.prepare(sql).all(...parametros);
+    const { rows: filas } = await pool.query(sql, parametros);
     const truncado = filas.length > 500;
     const asistencias = truncado ? filas.slice(0, 500) : filas;
 
@@ -432,7 +427,7 @@ router.get('/asistencias', (req, res) => {
   }
 });
 
-router.post('/estudiantes', soloAdmin, (req, res) => {
+router.post('/estudiantes', soloAdmin, async (req, res) => {
   try {
     const { nombre_completo, grado, grupo_id } = req.body;
 
@@ -446,36 +441,35 @@ router.post('/estudiantes', soloAdmin, (req, res) => {
       return res.status(400).json({ error: 'grupo_id inválido' });
     }
 
-    const grupo = db.prepare('SELECT id FROM grupos WHERE id = ?').get(grupo_id);
-    if (!grupo) {
+    const { rows: grupoRows } = await pool.query('SELECT id FROM grupos WHERE id = $1', [grupo_id]);
+    if (!grupoRows[0]) {
       return res.status(404).json({ error: 'Grupo no encontrado' });
     }
 
-    const { lastInsertRowid: nuevoId } = db.prepare(
-      'INSERT INTO estudiantes (nombre_completo, grado, grupo_id, activo) VALUES (?, ?, ?, 1)'
-    ).run(nombre_completo.trim(), grado.trim(), grupo_id);
-
-    const estudiante = db.prepare('SELECT * FROM estudiantes WHERE id = ?').get(nuevoId);
+    const { rows } = await pool.query(
+      'INSERT INTO estudiantes (nombre_completo, grado, grupo_id, activo) VALUES ($1, $2, $3, 1) RETURNING *',
+      [nombre_completo.trim(), grado.trim(), grupo_id]
+    );
 
     res.status(201).json({
       ok: true,
       mensaje: 'Estudiante creado',
-      estudiante
+      estudiante: rows[0]
     });
   } catch (err) {
     res.status(500).json({ error: 'Error al crear el estudiante' });
   }
 });
 
-router.put('/estudiantes/:id', soloAdmin, (req, res) => {
+router.put('/estudiantes/:id', soloAdmin, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) {
       return res.status(400).json({ error: 'ID inválido' });
     }
 
-    const existe = db.prepare('SELECT id FROM estudiantes WHERE id = ?').get(id);
-    if (!existe) {
+    const { rows: existeRows } = await pool.query('SELECT id FROM estudiantes WHERE id = $1', [id]);
+    if (!existeRows[0]) {
       return res.status(404).json({ error: 'Estudiante no encontrado' });
     }
 
@@ -491,39 +485,40 @@ router.put('/estudiantes/:id', soloAdmin, (req, res) => {
       return res.status(400).json({ error: 'grupo_id inválido' });
     }
 
-    const grupo = db.prepare('SELECT id FROM grupos WHERE id = ?').get(grupo_id);
-    if (!grupo) {
+    const { rows: grupoRows } = await pool.query('SELECT id FROM grupos WHERE id = $1', [grupo_id]);
+    if (!grupoRows[0]) {
       return res.status(404).json({ error: 'Grupo no encontrado' });
     }
 
-    db.prepare('UPDATE estudiantes SET nombre_completo = ?, grado = ?, grupo_id = ? WHERE id = ?')
-      .run(nombre_completo.trim(), grado.trim(), grupo_id, id);
-
-    const estudiante = db.prepare('SELECT * FROM estudiantes WHERE id = ?').get(id);
+    const { rows } = await pool.query(
+      'UPDATE estudiantes SET nombre_completo = $1, grado = $2, grupo_id = $3 WHERE id = $4 RETURNING *',
+      [nombre_completo.trim(), grado.trim(), grupo_id, id]
+    );
 
     res.json({
       ok: true,
       mensaje: 'Estudiante actualizado',
-      estudiante
+      estudiante: rows[0]
     });
   } catch (err) {
     res.status(500).json({ error: 'Error al actualizar el estudiante' });
   }
 });
 
-router.delete('/estudiantes/:id', soloAdmin, (req, res) => {
+router.delete('/estudiantes/:id', soloAdmin, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) {
       return res.status(400).json({ error: 'ID inválido' });
     }
 
-    const estudiante = db.prepare('SELECT id, activo FROM estudiantes WHERE id = ?').get(id);
+    const { rows } = await pool.query('SELECT id, activo FROM estudiantes WHERE id = $1', [id]);
+    const estudiante = rows[0];
     if (!estudiante) {
       return res.status(404).json({ error: 'Estudiante no encontrado' });
     }
 
-    db.prepare('UPDATE estudiantes SET activo = 0 WHERE id = ?').run(id);
+    await pool.query('UPDATE estudiantes SET activo = 0 WHERE id = $1', [id]);
 
     const mensaje = estudiante.activo === 1
       ? 'Estudiante desactivado'
@@ -535,19 +530,20 @@ router.delete('/estudiantes/:id', soloAdmin, (req, res) => {
   }
 });
 
-router.put('/estudiantes/:id/reactivar', soloAdmin, (req, res) => {
+router.put('/estudiantes/:id/reactivar', soloAdmin, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) {
       return res.status(400).json({ error: 'ID inválido' });
     }
 
-    const estudiante = db.prepare('SELECT id, activo FROM estudiantes WHERE id = ?').get(id);
+    const { rows } = await pool.query('SELECT id, activo FROM estudiantes WHERE id = $1', [id]);
+    const estudiante = rows[0];
     if (!estudiante) {
       return res.status(404).json({ error: 'Estudiante no encontrado' });
     }
 
-    db.prepare('UPDATE estudiantes SET activo = 1 WHERE id = ?').run(id);
+    await pool.query('UPDATE estudiantes SET activo = 1 WHERE id = $1', [id]);
 
     const mensaje = estudiante.activo === 0
       ? 'Estudiante reactivado'
@@ -559,7 +555,7 @@ router.put('/estudiantes/:id/reactivar', soloAdmin, (req, res) => {
   }
 });
 
-router.post('/grupos', soloAdmin, (req, res) => {
+router.post('/grupos', soloAdmin, async (req, res) => {
   try {
     const { nombre, actividad, entrenador_id, horario, lugar } = req.body;
 
@@ -579,32 +575,34 @@ router.post('/grupos', soloAdmin, (req, res) => {
       return res.status(400).json({ error: 'lugar debe ser string' });
     }
 
-    const entrenador = db.prepare('SELECT id FROM usuarios WHERE id = ? AND rol = ?').get(entrenador_id, 'entrenador');
-    if (!entrenador) {
+    const { rows: entRows } = await pool.query(
+      "SELECT id FROM usuarios WHERE id = $1 AND rol = 'entrenador'",
+      [entrenador_id]
+    );
+    if (!entRows[0]) {
       return res.status(404).json({ error: 'Entrenador no encontrado o usuario no es entrenador' });
     }
 
-    const { lastInsertRowid: nuevoId } = db.prepare(
-      'INSERT INTO grupos (nombre, actividad, entrenador_id, horario, lugar) VALUES (?, ?, ?, ?, ?)'
-    ).run(nombre.trim(), actividad.trim(), entrenador_id, horario ?? null, lugar ?? null);
+    const { rows } = await pool.query(
+      'INSERT INTO grupos (nombre, actividad, entrenador_id, horario, lugar) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [nombre.trim(), actividad.trim(), entrenador_id, horario ?? null, lugar ?? null]
+    );
 
-    const grupo = db.prepare('SELECT * FROM grupos WHERE id = ?').get(nuevoId);
-
-    res.status(201).json({ ok: true, mensaje: 'Grupo creado', grupo });
+    res.status(201).json({ ok: true, mensaje: 'Grupo creado', grupo: rows[0] });
   } catch (err) {
     res.status(500).json({ error: 'Error al crear el grupo' });
   }
 });
 
-router.put('/grupos/:id', soloAdmin, (req, res) => {
+router.put('/grupos/:id', soloAdmin, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) {
       return res.status(400).json({ error: 'ID inválido' });
     }
 
-    const existe = db.prepare('SELECT id FROM grupos WHERE id = ?').get(id);
-    if (!existe) {
+    const { rows: existeRows } = await pool.query('SELECT id FROM grupos WHERE id = $1', [id]);
+    if (!existeRows[0]) {
       return res.status(404).json({ error: 'Grupo no encontrado' });
     }
 
@@ -626,37 +624,43 @@ router.put('/grupos/:id', soloAdmin, (req, res) => {
       return res.status(400).json({ error: 'lugar debe ser string' });
     }
 
-    const entrenador = db.prepare('SELECT id FROM usuarios WHERE id = ? AND rol = ?').get(entrenador_id, 'entrenador');
-    if (!entrenador) {
+    const { rows: entRows } = await pool.query(
+      "SELECT id FROM usuarios WHERE id = $1 AND rol = 'entrenador'",
+      [entrenador_id]
+    );
+    if (!entRows[0]) {
       return res.status(404).json({ error: 'Entrenador no encontrado o usuario no es entrenador' });
     }
 
-    db.prepare('UPDATE grupos SET nombre = ?, actividad = ?, entrenador_id = ?, horario = ?, lugar = ? WHERE id = ?')
-      .run(nombre.trim(), actividad.trim(), entrenador_id, horario ?? null, lugar ?? null, id);
+    const { rows } = await pool.query(
+      'UPDATE grupos SET nombre = $1, actividad = $2, entrenador_id = $3, horario = $4, lugar = $5 WHERE id = $6 RETURNING *',
+      [nombre.trim(), actividad.trim(), entrenador_id, horario ?? null, lugar ?? null, id]
+    );
 
-    const grupo = db.prepare('SELECT * FROM grupos WHERE id = ?').get(id);
-
-    res.json({ ok: true, mensaje: 'Grupo actualizado', grupo });
+    res.json({ ok: true, mensaje: 'Grupo actualizado', grupo: rows[0] });
   } catch (err) {
     res.status(500).json({ error: 'Error al actualizar el grupo' });
   }
 });
 
-router.delete('/grupos/:id', soloAdmin, (req, res) => {
+router.delete('/grupos/:id', soloAdmin, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) {
       return res.status(400).json({ error: 'ID inválido' });
     }
 
-    const grupo = db.prepare('SELECT id, activo FROM grupos WHERE id = ?').get(id);
+    const { rows: grupoRows } = await pool.query('SELECT id, activo FROM grupos WHERE id = $1', [id]);
+    const grupo = grupoRows[0];
     if (!grupo) {
       return res.status(404).json({ error: 'Grupo no encontrado' });
     }
 
-    const { total } = db.prepare(
-      'SELECT COUNT(*) as total FROM estudiantes WHERE grupo_id = ? AND activo = 1'
-    ).get(id);
+    const { rows: countRows } = await pool.query(
+      'SELECT COUNT(*) AS total FROM estudiantes WHERE grupo_id = $1 AND activo = 1',
+      [id]
+    );
+    const total = parseInt(countRows[0].total);
     if (total > 0) {
       return res.status(409).json({
         error: 'No se puede desactivar un grupo con estudiantes activos. Reasigna o desactiva a los estudiantes primero.',
@@ -664,7 +668,7 @@ router.delete('/grupos/:id', soloAdmin, (req, res) => {
       });
     }
 
-    db.prepare('UPDATE grupos SET activo = 0 WHERE id = ?').run(id);
+    await pool.query('UPDATE grupos SET activo = 0 WHERE id = $1', [id]);
 
     const mensaje = grupo.activo === 1 ? 'Grupo desactivado' : 'El grupo ya estaba desactivado';
     res.json({ ok: true, mensaje, id });
@@ -673,14 +677,14 @@ router.delete('/grupos/:id', soloAdmin, (req, res) => {
   }
 });
 
-router.get('/entrenadores', soloAdmin, (req, res) => {
+router.get('/entrenadores', soloAdmin, async (req, res) => {
   try {
     const incluirInactivos = req.query.incluir_inactivos === 'true';
     const sql = incluirInactivos
       ? "SELECT id, nombre, usuario, rol, activo, creado_en FROM usuarios WHERE rol = 'entrenador' ORDER BY nombre"
       : "SELECT id, nombre, usuario, rol, activo, creado_en FROM usuarios WHERE rol = 'entrenador' AND activo = 1 ORDER BY nombre";
-    const entrenadores = db.prepare(sql).all();
-    res.json(entrenadores);
+    const { rows } = await pool.query(sql);
+    res.json(rows);
   } catch (err) {
     res.status(500).json({ error: 'Error al obtener los entrenadores' });
   }
@@ -700,36 +704,33 @@ router.post('/entrenadores', soloAdmin, async (req, res) => {
       return res.status(400).json({ error: 'contraseña debe tener al menos 6 caracteres' });
     }
 
-    const existe = db.prepare('SELECT id FROM usuarios WHERE usuario = ?').get(usuario.trim());
-    if (existe) {
+    const { rows: existeRows } = await pool.query('SELECT id FROM usuarios WHERE usuario = $1', [usuario.trim()]);
+    if (existeRows[0]) {
       return res.status(409).json({ error: 'El nombre de usuario ya está en uso' });
     }
 
     const password_hash = await bcrypt.hash(contraseña, 10);
 
-    const { lastInsertRowid: nuevoId } = db.prepare(
-      "INSERT INTO usuarios (nombre, usuario, password_hash, rol) VALUES (?, ?, ?, 'entrenador')"
-    ).run(nombre.trim(), usuario.trim(), password_hash);
+    const { rows } = await pool.query(
+      "INSERT INTO usuarios (nombre, usuario, password_hash, rol) VALUES ($1, $2, $3, 'entrenador') RETURNING id, nombre, usuario, rol, creado_en",
+      [nombre.trim(), usuario.trim(), password_hash]
+    );
 
-    const entrenador = db.prepare(
-      'SELECT id, nombre, usuario, rol, creado_en FROM usuarios WHERE id = ?'
-    ).get(nuevoId);
-
-    res.status(201).json({ ok: true, mensaje: 'Entrenador creado', entrenador });
+    res.status(201).json({ ok: true, mensaje: 'Entrenador creado', entrenador: rows[0] });
   } catch (err) {
     res.status(500).json({ error: 'Error al crear el entrenador' });
   }
 });
 
-router.put('/entrenadores/:id', soloAdmin, (req, res) => {
+router.put('/entrenadores/:id', soloAdmin, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) {
       return res.status(400).json({ error: 'ID inválido' });
     }
 
-    const existe = db.prepare("SELECT id FROM usuarios WHERE id = ? AND rol = 'entrenador'").get(id);
-    if (!existe) {
+    const { rows: existeRows } = await pool.query("SELECT id FROM usuarios WHERE id = $1 AND rol = 'entrenador'", [id]);
+    if (!existeRows[0]) {
       return res.status(404).json({ error: 'Entrenador no encontrado' });
     }
 
@@ -742,19 +743,20 @@ router.put('/entrenadores/:id', soloAdmin, (req, res) => {
       return res.status(400).json({ error: 'usuario es obligatorio' });
     }
 
-    const conflicto = db.prepare('SELECT id FROM usuarios WHERE usuario = ? AND id != ?').get(usuario.trim(), id);
-    if (conflicto) {
+    const { rows: conflictoRows } = await pool.query(
+      'SELECT id FROM usuarios WHERE usuario = $1 AND id != $2',
+      [usuario.trim(), id]
+    );
+    if (conflictoRows[0]) {
       return res.status(409).json({ error: 'El nombre de usuario ya está en uso' });
     }
 
-    db.prepare('UPDATE usuarios SET nombre = ?, usuario = ? WHERE id = ?')
-      .run(nombre.trim(), usuario.trim(), id);
+    const { rows } = await pool.query(
+      'UPDATE usuarios SET nombre = $1, usuario = $2 WHERE id = $3 RETURNING id, nombre, usuario, rol, creado_en',
+      [nombre.trim(), usuario.trim(), id]
+    );
 
-    const entrenador = db.prepare(
-      'SELECT id, nombre, usuario, rol, creado_en FROM usuarios WHERE id = ?'
-    ).get(id);
-
-    res.json({ ok: true, mensaje: 'Entrenador actualizado', entrenador });
+    res.json({ ok: true, mensaje: 'Entrenador actualizado', entrenador: rows[0] });
   } catch (err) {
     res.status(500).json({ error: 'Error al actualizar el entrenador' });
   }
@@ -767,8 +769,8 @@ router.put('/entrenadores/:id/password', soloAdmin, async (req, res) => {
       return res.status(400).json({ error: 'ID inválido' });
     }
 
-    const existe = db.prepare("SELECT id FROM usuarios WHERE id = ? AND rol = 'entrenador'").get(id);
-    if (!existe) {
+    const { rows: existeRows } = await pool.query("SELECT id FROM usuarios WHERE id = $1 AND rol = 'entrenador'", [id]);
+    if (!existeRows[0]) {
       return res.status(404).json({ error: 'Entrenador no encontrado' });
     }
 
@@ -779,7 +781,7 @@ router.put('/entrenadores/:id/password', soloAdmin, async (req, res) => {
     }
 
     const password_hash = await bcrypt.hash(contraseña, 10);
-    db.prepare('UPDATE usuarios SET password_hash = ? WHERE id = ?').run(password_hash, id);
+    await pool.query('UPDATE usuarios SET password_hash = $1 WHERE id = $2', [password_hash, id]);
 
     res.json({ ok: true, mensaje: 'Contraseña actualizada' });
   } catch (err) {
@@ -787,21 +789,24 @@ router.put('/entrenadores/:id/password', soloAdmin, async (req, res) => {
   }
 });
 
-router.delete('/entrenadores/:id', soloAdmin, (req, res) => {
+router.delete('/entrenadores/:id', soloAdmin, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) {
       return res.status(400).json({ error: 'ID inválido' });
     }
 
-    const entrenador = db.prepare("SELECT id, activo FROM usuarios WHERE id = ? AND rol = 'entrenador'").get(id);
+    const { rows: entRows } = await pool.query("SELECT id, activo FROM usuarios WHERE id = $1 AND rol = 'entrenador'", [id]);
+    const entrenador = entRows[0];
     if (!entrenador) {
       return res.status(404).json({ error: 'Entrenador no encontrado' });
     }
 
-    const { total } = db.prepare(
-      'SELECT COUNT(*) as total FROM grupos WHERE entrenador_id = ? AND activo = 1'
-    ).get(id);
+    const { rows: countRows } = await pool.query(
+      'SELECT COUNT(*) AS total FROM grupos WHERE entrenador_id = $1 AND activo = 1',
+      [id]
+    );
+    const total = parseInt(countRows[0].total);
     if (total > 0) {
       return res.status(409).json({
         error: 'No se puede desactivar un entrenador con grupos activos asignados. Reasigna sus grupos primero.',
@@ -809,7 +814,7 @@ router.delete('/entrenadores/:id', soloAdmin, (req, res) => {
       });
     }
 
-    db.prepare('UPDATE usuarios SET activo = 0 WHERE id = ?').run(id);
+    await pool.query('UPDATE usuarios SET activo = 0 WHERE id = $1', [id]);
 
     const mensaje = entrenador.activo === 1 ? 'Entrenador desactivado' : 'El entrenador ya estaba desactivado';
     res.json({ ok: true, mensaje, id });
