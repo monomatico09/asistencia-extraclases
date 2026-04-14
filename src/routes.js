@@ -823,4 +823,14 @@ router.delete('/entrenadores/:id', soloAdmin, async (req, res) => {
   }
 });
 
+router.post('/seed', async (req, res) => {
+  try {
+    const { main } = require('./seed.js');
+    await main();
+    res.json({ success: true, message: 'Seed ejecutado correctamente' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;

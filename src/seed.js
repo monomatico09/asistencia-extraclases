@@ -91,7 +91,11 @@ async function main() {
   await pool.end();
 }
 
-main().catch(err => {
-  console.error(err);
-  process.exit(1);
-});
+module.exports = { main };
+
+if (require.main === module) {
+  main().catch(err => {
+    console.error(err);
+    process.exit(1);
+  });
+}
