@@ -59,12 +59,11 @@
         <span id="rep-total"></span>
         <span id="rep-presentes" style="color:var(--pico-color-green-500);"></span>
         <span id="rep-ausentes"  style="color:var(--pico-color-red-500);"></span>
-        <span id="rep-tardes"    style="color:var(--pico-color-orange-500);"></span>
       </div>
       <p id="rep-truncado" style="color:var(--pico-color-orange-500); display:none; margin:0;">
         Se muestran los primeros 500 registros. Ajusta el rango de fechas para ver menos resultados.
       </p>
-      <button id="btnExportar" class="outline" style="margin-top:0.75rem;">Exportar CSV</button>
+      <button id="btnExportar" class="outline" style="margin-top:0.75rem;">Exportar Excel</button>
     </div>
 
     <div id="resultadoReporte"></div>
@@ -75,6 +74,7 @@
     </div>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script src="reportes.js"></script>
 </body>
 </html>

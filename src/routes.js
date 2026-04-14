@@ -223,7 +223,7 @@ router.post('/asistencias', async (req, res) => {
       return res.status(400).json({ error: 'registros debe ser un array no vacío' });
     }
 
-    const estadosValidos = ['presente', 'ausente', 'tarde'];
+    const estadosValidos = ['presente', 'ausente'];
 
     for (let i = 0; i < registros.length; i++) {
       const r = registros[i];
@@ -332,7 +332,7 @@ router.get('/asistencias', async (req, res) => {
       return res.status(400).json({ error: 'fecha_desde no puede ser mayor que fecha_hasta' });
     }
 
-    const estadosValidos = ['presente', 'ausente', 'tarde'];
+    const estadosValidos = ['presente', 'ausente'];
     if (req.query.estado !== undefined) {
       estado = req.query.estado;
       if (!estadosValidos.includes(estado)) {

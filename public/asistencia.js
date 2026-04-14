@@ -91,9 +91,8 @@ async function cargarDatos() {
           <small>${est.grado}</small>
         </div>
         <div class="opciones-estado">
-          <label><input type="radio" name="estado_${est.id}" value="presente" checked> Presente</label>
-          <label><input type="radio" name="estado_${est.id}" value="ausente"> Ausente</label>
-          <label><input type="radio" name="estado_${est.id}" value="tarde"> Tarde</label>
+          <label><input type="radio" name="estado_${est.id}" value="presente" checked> Asistió</label>
+          <label><input type="radio" name="estado_${est.id}" value="ausente"> No asistió</label>
         </div>
       </div>
     `).join('');

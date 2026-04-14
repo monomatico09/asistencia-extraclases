@@ -158,12 +158,19 @@ table thead th {
   letter-spacing: 0.03em;
 }
 
+table tbody tr {
+  background-color: #ffffff;
+  color: #1a1a1a;
+}
+
 table tbody tr:nth-child(even) {
   background-color: #f0f5ff;
+  color: #1a1a1a;
 }
 
 table tbody tr:hover {
   background-color: #dbeafe;
+  color: #1a1a1a;
 }
 
 /* ===== Botones outline en tablas ===== */

@@ -48,6 +48,10 @@ function capitalizar(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
+function etiquetaEstado(estado) {
+  return { presente: 'Asistió', ausente: 'No asistió' }[estado] || capitalizar(estado);
+}
+
 // ============ Cargar grupos para el select ============
 async function cargarGruposSelect() {
   try {
@@ -103,12 +107,11 @@ document.getElementById('formReporte').addEventListener('submit', async (e) => {
     }
 
     // Resumen
-    const conteo = { presente: 0, ausente: 0, tarde: 0 };
+    const conteo = { presente: 0, ausente: 0 };
     asistencias.forEach(a => { if (conteo[a.estado] !== undefined) conteo[a.estado]++; });
     document.getElementById('rep-total').textContent     = `Total: ${total}`;
-    document.getElementById('rep-presentes').textContent = `Presentes: ${conteo.presente}`;
-    document.getElementById('rep-ausentes').textContent  = `Ausentes: ${conteo.ausente}`;
-    document.getElementById('rep-tardes').textContent    = `Tardes: ${conteo.tarde}`;
+    document.getElementById('rep-presentes').textContent = `Asistió: ${conteo.presente}`;
+    document.getElementById('rep-ausentes').textContent  = `No asistió: ${conteo.ausente}`;
     document.getElementById('rep-truncado').style.display = truncado ? 'block' : 'none';
     resumen.style.display = 'block';
 
@@ -129,7 +132,7 @@ document.getElementById('formReporte').addEventListener('submit', async (e) => {
               <td>${a.fecha}</td>
               <td>${a.estudiante_nombre}</td>
               ${esAdmin ? `<td>${a.grupo_nombre}</td>` : ''}
-              <td style="color:${colorEstado(a.estado)}; font-weight:bold;">${capitalizar(a.estado)}</td>
+              <td style="color:${colorEstado(a.estado)}; font-weight:bold;">${etiquetaEstado(a.estado)}</td>
               <td>${a.registrado_por_nombre}</td>
             </tr>`).join('')}
         </tbody>
@@ -154,15 +157,15 @@ function renderPorcentajes(asistencias) {
   const mapa = new Map();
   asistencias.forEach(a => {
     if (!mapa.has(a.estudiante_id)) {
-      mapa.set(a.estudiante_id, { nombre: a.estudiante_nombre, presente: 0, ausente: 0, tarde: 0 });
+      mapa.set(a.estudiante_id, { nombre: a.estudiante_nombre, presente: 0, ausente: 0 });
     }
     const est = mapa.get(a.estudiante_id);
-    est[a.estado]++;
+    if (a.estado in est) est[a.estado]++;
   });
 
   const filas = [...mapa.values()]
     .map(e => {
-      const total = e.presente + e.ausente + e.tarde;
+      const total = e.presente + e.ausente;
       const pct   = total > 0 ? Math.round((e.presente / total) * 100) : 0;
       return { ...e, total, pct };
     })
@@ -172,9 +175,8 @@ function renderPorcentajes(asistencias) {
     <figure><table>
       <thead><tr>
         <th>Estudiante</th>
-        <th>Presentes</th>
-        <th>Ausentes</th>
-        <th>Tardes</th>
+        <th>Asistió</th>
+        <th>No asistió</th>
         <th>Total sesiones</th>
         <th>% Asistencia</th>
       </tr></thead>
@@ -187,7 +189,6 @@ function renderPorcentajes(asistencias) {
             <td>${f.nombre}</td>
             <td>${f.presente}</td>
             <td>${f.ausente}</td>
-            <td>${f.tarde}</td>
             <td>${f.total}</td>
             <td style="color:${color}; font-weight:bold;">${f.pct}%</td>
           </tr>`;
@@ -196,7 +197,7 @@ function renderPorcentajes(asistencias) {
     </table></figure>`;
 }
 
-// ============ Exportar CSV ============
+// ============ Exportar Excel ============
 document.getElementById('btnExportar').addEventListener('click', () => {
   if (ultimasAsistencias.length === 0) return;
 
@@ -206,21 +207,14 @@ document.getElementById('btnExportar').addEventListener('click', () => {
     a.fecha,
     a.estudiante_nombre,
     ...(esAdmin ? [a.grupo_nombre] : []),
-    a.estado,
+    etiquetaEstado(a.estado),
     a.registrado_por_nombre
   ]);
 
-  const csv = [headers, ...rows]
-    .map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
-    .join('\n');
-
-  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `asistencia_${new Date().toISOString().slice(0, 10)}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  XLSX.utils.book_append_sheet(wb, ws, 'Asistencias');
+  XLSX.writeFile(wb, `asistencia_${new Date().toISOString().slice(0, 10)}.xlsx`);
 });
 
 // ============ Init ============
